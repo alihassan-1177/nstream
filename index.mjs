@@ -1,29 +1,45 @@
 import { readdir, writeFile, readFile } from "fs/promises"
 import express from "express"
 
-const INDEX_PATH = "D:/Videos/Courses"
-const globalState = {
-    data: {}
-}
+const INDEX_PATH = "/home/ali/Downloads"
 
 main()
 
 async function main() {
+    const command = process.argv[2]
+
+    switch (command) {
+        case "index":
+            await indexFiles()
+            console.log("COMMAND COMPLETED => ", command)
+            break;
+        case "serve":
+            await startServer()
+            console.log("COMMAND COMPLETED => ", command)
+            break;
+        default:
+            console.log("UNKNOWN COMMAND => ", command)
+            break;
+    }
+
+}
+
+async function startServer() {
     const app = express()
     const port = 3000
 
     app.use(express.static('public'))
     app.use(express.json())
 
-    globalState.data = await loadData()
+    let data = await loadData()
 
     const initialData = {}
 
-    for (let key of Object.keys(globalState.data)) {
+    for (let key of Object.keys(data)) {
         initialData[key] = {
-            type: globalState.data[key].type,
-            path: globalState.data[key].path,
-            name: globalState.data[key].name,
+            type: data[key].type,
+            path: data[key].path,
+            name: data[key].name,
         }
     }
 
@@ -36,7 +52,7 @@ async function main() {
                 if (_data[key] && _data[key]["children"]) {
                     _data = _data[key]["children"]
                 } else {
-                    _data = globalState.data[key]["children"]
+                    _data = data[key]["children"]
                 }
             }
 
@@ -53,15 +69,6 @@ async function main() {
         } else {
             res.send(initialData)
         }
-    })
-
-    app.get('/api/refresh-index', async (req, res) => {
-        console.log("REFRESHING INDEX")
-        await indexFiles()
-        globalState.data = await loadData()
-        res.send({
-            "success": true
-        })
     })
 
     app.listen(port, () => {
@@ -104,5 +111,16 @@ async function findFilesInDirectory(directoryPath, foundFiles) {
 }
 
 async function loadData() {
-    return JSON.parse((await readFile("data.json")).toString())
+    try {
+        const data = await readFile("data.json")
+        return JSON.parse(data.toString())
+    } catch (error) {
+        if (error.code == "ENOENT") {
+            console.log("FILE NOT FOUND => ", error.path)
+            console.log("PLEASE RUN `npm run index` FIRST")
+            process.exit(1)
+        }
+
+        throw error
+    }
 }

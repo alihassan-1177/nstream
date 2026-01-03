@@ -82,3 +82,33 @@ body {
 .item:hover{
     background-color: #222;
 }
+
+.breadcrumbs{
+    margin-bottom: 20px;    
+}
+
+.breadcrumbs i {
+    font-size: 16px;
+}
+
+.breadcrumbs button{
+    border: none;
+    background: none;
+    color: #999;
+    font-size: 14px;
+    padding: 4px;
+    transition: all 100ms ease-in-out;
+    cursor: pointer;
+}
+
+.breadcrumbs span {
+    color: #777;
+}
+
+.breadcrumbs button:hover{
+    opacity: 0.5
+}
+
+.breadcrumb-item:last-of-type {
+    pointer-events: none;
+}

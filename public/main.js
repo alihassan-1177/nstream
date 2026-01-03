@@ -3,17 +3,7 @@ const globalState = {
     keys: []
 }
 
-
-const refreshIndexButton = document.querySelector(".refresh-btn")
-
-refreshIndexButton.addEventListener("click", async () => {
-    console.log("SENDING REFRESH REQUEST")
-    const response = await fetch("/api/refresh-index")
-    const data = await response.json()
-    if(data.success){
-        main()        
-    }
-})
+const breadcrumbs = document.querySelector(".breadcrumbs")
 
 main()
 
@@ -23,7 +13,6 @@ async function main() {
 }
 
 async function loadData() {
-    console.log("GLOBAL STATE KEYS => ", globalState.keys)
     const response = await fetch("/api/data", {
         headers: {
             "Content-Type": "application/json"
@@ -42,7 +31,6 @@ async function buildUI() {
     items.innerHTML = ""
 
     const keys = Object.keys(globalState.data)
-    console.log("DATA KEYS => ", keys)
     if (keys.length > 0) {
 
         for (let key of keys) {
@@ -60,19 +48,55 @@ async function buildUI() {
         `
 
             items.innerHTML += element
-            // console.log("ITEM => ", item)
         }
 
     }
 }
 
 async function openItem(e) {
-    if (e.dataset.type == "FOLDER") {
-        if (globalState.keys.indexOf(e.dataset.id) == -1) {
-            globalState.keys.push(e.dataset.id)
-            await loadData()
-            await buildUI()
-        }
+    window.scrollTo(0, 0);
+
+    if (e.dataset.type == "HOME") {
+        globalState.keys = []
+        await loadData()
+        await buildUI()
     }
 
+    if (e.dataset.type == "FOLDER") {    
+        if (globalState.keys.indexOf(e.dataset.id) == -1) {
+            globalState.keys.push(e.dataset.id)
+        } else {
+            let index = globalState.keys.indexOf(e.dataset.id)
+            globalState.keys.splice(index + 1)
+        }
+        await loadData()
+        await buildUI()
+    }
+
+    buildBreadcrumbs()
+}
+
+buildBreadcrumbs()
+
+function buildBreadcrumbs() {
+    const homeBtn = `
+        <button class="breadcrumb-item" onclick="openItem(this)" data-type="HOME">
+            <i class="fa-solid fa-home"></i>
+        </button>
+        <span>/</span>
+        `
+
+    breadcrumbs.innerHTML = `${homeBtn}`
+
+    console.log(globalState)
+
+    globalState.keys.forEach(key => {
+        const element = `
+        <button class="breadcrumb-item" onclick="openItem(this)" data-id="${key}" data-type="FOLDER">
+           ${key}
+        </button>
+        <span>/</span>
+        `
+        breadcrumbs.innerHTML += element
+    })
 }
