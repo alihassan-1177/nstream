@@ -1,26 +1,57 @@
 import { readdir, writeFile, readFile } from "fs/promises"
 import express from "express"
+import { createWriteStream } from "fs"
 
-const INDEX_PATH = "/home/ali/Downloads"
+// const INDEX_PATH = "D:/Videos"
+const INDEX_PATH = "E:/work"
+// const INDEX_PATH = "E:/work"
+
+const LOGGING_ENABLED = true
 
 main()
+
+function log(){
+    if (LOGGING_ENABLED) {
+        console.log(...arguments)
+    }
+}
 
 async function main() {
     const command = process.argv[2]
 
+    console.time("EXECUTION TIME =>", command)
+
     switch (command) {
         case "index":
             await indexFiles()
-            console.log("COMMAND COMPLETED => ", command)
             break;
         case "serve":
             await startServer()
-            console.log("COMMAND COMPLETED => ", command)
+            break;
+        case "experiment":
+            // const files = await readdir(INDEX_PATH, {
+            //     recursive: true,
+            //     withFileTypes: true
+            // })
+
+            // const stream = createWriteStream("experiment.txt")
+
+            // for (const file of files) {
+            //     log("PROCESSING =>", file.name)
+            //     stream.write(`${file.name}\n`)
+            // }
+
+            // stream.end()
+
             break;
         default:
-            console.log("UNKNOWN COMMAND => ", command)
+            log("UNKNOWN COMMAND =>", command)
+            process.exit()
             break;
     }
+
+    log("COMMAND COMPLETED =>", command)
+    console.timeEnd("EXECUTION TIME =>", command)
 
 }
 
@@ -72,42 +103,17 @@ async function startServer() {
     })
 
     app.listen(port, () => {
-        console.log(`Example app listening on port ${port}`)
+        log(`SERVER STARTED ON PORT => ${port}`)
     })
 }
 
 async function indexFiles() {
     const files = {}
-    await findFilesInDirectory(INDEX_PATH, files)
+    const writeStream = createWriteStream("experiment.txt")
+    await loadFilesDataImproved(INDEX_PATH, files, writeStream)
+    writeStream.end()
+
     await writeFile("data.json", JSON.stringify(files))
-    console.log("FOUND FILES => ", files)
-}
-
-async function findFilesInDirectory(directoryPath, foundFiles) {
-    const files = await readdir(directoryPath)
-    for (const file of files) {
-        console.log("PROCESSING FILE => ", file)
-        const filePath = `${directoryPath}/${file}`
-        const key = filePath.replace(/[^a-z0-9]/gi, "").toUpperCase();
-        try {
-            foundFiles[key] = {
-                type: "FOLDER",
-                path: filePath,
-                name: file
-            }
-
-            foundFiles[key]["children"] = {}
-            await findFilesInDirectory(filePath, foundFiles[key]["children"])
-        } catch (error) {
-            if (error.code == "ENOTDIR") {
-                foundFiles[key] = {
-                    type: "FILE",
-                    path: filePath,
-                    name: file
-                }
-            }
-        }
-    }
 }
 
 async function loadData() {
@@ -116,11 +122,77 @@ async function loadData() {
         return JSON.parse(data.toString())
     } catch (error) {
         if (error.code == "ENOENT") {
-            console.log("FILE NOT FOUND => ", error.path)
-            console.log("PLEASE RUN `npm run index` FIRST")
+            log("FILE NOT FOUND => ", error.path)
+            log("PLEASE RUN `npm run index` FIRST")
             process.exit(1)
         }
 
         throw error
     }
+}
+
+async function loadFilesData(directoryPath, foundFiles) {
+    const files = await readdir(directoryPath, {
+        withFileTypes: true
+    })
+
+    for (const file of files) {
+        log("PROCESSING =>", file.name)
+        const filePath = `${directoryPath}/${file.name}`
+        const key = filePath.replace(/[^a-z0-9]/gi, "").toUpperCase();
+
+        if (file.isDirectory()) {
+            log("FOUND DIRECTORY =>", filePath)
+
+            foundFiles[key] = {
+                type: "FOLDER",
+                path: filePath,
+                name: file.name
+            }
+
+            foundFiles[key]["children"] = {}
+            await loadFilesData(filePath, foundFiles[key]["children"])
+        }
+
+        if (file.isFile()) {
+            log("FOUND FILE =>", filePath)
+
+            foundFiles[key] = {
+                type: "FILE",
+                path: filePath,
+                name: file.name
+            }
+        }
+
+    }
+}
+
+async function loadFilesDataImproved(directoryPath, foundFiles, writeStream) {
+    const files = await readdir(directoryPath, { withFileTypes: true });
+    // Use Promise.all if you want to speed up processing of sub-directories in parallel
+    await Promise.all(files.map(async (file) => {
+        const filePath = `${directoryPath}/${file.name}`;
+        const key = filePath.replace(/[^a-z0-9]/gi, "").toUpperCase();
+
+        log("PROCESSING =>", filePath);
+ 
+        writeStream.write(`${filePath}\n`)
+
+        if (file.isDirectory()) {
+            foundFiles[key] = {
+                type: "FOLDER",
+                path: filePath,
+                name: file.name,
+                children: {} // Initialize children immediately
+            };
+            // Recursive call
+            await loadFilesDataImproved(filePath, foundFiles[key].children, writeStream);
+        } else if (file.isFile()) {
+            foundFiles[key] = {
+                type: "FILE",
+                path: filePath,
+                name: file.name
+            };
+        }
+    }));
 }

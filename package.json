@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "index": "node index.mjs index",
-    "serve": "node index.mjs serve"
+    "serve": "node index.mjs serve",
+    "experiment": "node index.mjs experiment"
   },
   "keywords": [],
   "author": "",
